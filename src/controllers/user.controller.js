@@ -1,8 +1,10 @@
 import {asyncHandler} from "../utils/asyncHandler.js";
-import {ApiError} from "../utils/apiError.js";
-import User from "../models/user.model.js";
-import { uploadToCloudinary } from "../utils/cloudinary.js";
+import {ApiError} from "../utils/apiErrors.js";
+import {User} from "../models/user.model.js";
+import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/apiRespones.js";
+import path from "path";
+import { log } from "console";
 
 const registerUser = asyncHandler(async (req, res, next) => {
     // get user data from frontend
@@ -26,7 +28,7 @@ const registerUser = asyncHandler(async (req, res, next) => {
     }
 
     //3. check if user already exists
-    const existedUser = User.findOne({
+    const existedUser = await User.findOne({
         $or: [{email}, {username}
         ]
     });
@@ -35,20 +37,31 @@ const registerUser = asyncHandler(async (req, res, next) => {
     }
 
     //4. check for images and avatar
-    const avatarLocalPath = req.files?.avatar[0]?.path;
-    const coverImageLocalPath = req.files?.coverImage[0]?.path;
-
-    if(!avatarLocalPath){
-        throw new ApiError(400, "Avatar is required");
+    const avatarLocalPath = req.files?.avatar?.[0]?.path;
+    const coverImageLocalPath = req.files?.coverImage?.[0]?.path;
+    console.log("Avatar local path", avatarLocalPath);
+    console.log("Cover Image path",coverImageLocalPath);
+    
+    
+    const avatarPath = avatarLocalPath
+    ? path.resolve(avatarLocalPath)
+    : null;
+    console.log("avatar path",avatarPath);
+    
+    if (!avatarPath) {
+    throw new ApiError(400, "Avatar is required");
     }
 
-    //5. upload them to cloudinary
-    const avatar = await uploadToCloudinary(avatarLocalPath);
-    const coverImage = await uploadToCloudinary(coverImageLocalPath);
+    const avatar = await uploadOnCloudinary(avatarPath);
+    const coverImage = await uploadOnCloudinary(coverImageLocalPath);
+    console.log("avatar",avatar);
+    
 
-    if(!avatar){
-        throw new ApiError(400, "Avatar is required");
-    }
+    if (!avatar) {
+    throw new ApiError(500, "Avatar upload failed");
+}
+console.log("REQ.FILES:", req.files);
+
 
     //6. create user object and save to db
     const user = await User.create({
