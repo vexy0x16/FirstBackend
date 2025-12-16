@@ -7,8 +7,8 @@ export const verifyJWT = asyncHandler(async (req, res, next) => {
 
     try {
         //1. get token from cookies
-        const token = req.cookies.accessToken || 
-            req.headers("Authorization")?.replace("Bearer ","");
+        const token = req.cookies?.accessToken || 
+            req.header("Authorization")?.replace("Bearer ","");
     
         if(!token){
             throw new ApiError(401, "Not authorized, token missing");
@@ -29,6 +29,9 @@ export const verifyJWT = asyncHandler(async (req, res, next) => {
         req.user = user;
         next();
     } catch (error) {
+        console.log("cookies:", req.cookies);
+console.log("auth header:", req.header("Authorization"));
+console.log("token:", token, typeof token);
         throw new ApiError(401,error?.message ||"Not authorized, token invalid");
     }
 
