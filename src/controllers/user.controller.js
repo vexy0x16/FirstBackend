@@ -106,7 +106,7 @@ const generateAccessTokenAndRefreshToken = async (userId) => {
             throw new ApiError(500, "Token generation failed");
             
         }
-    };
+};
 
 const loginUser = asyncHandler(async (req, res, next) => {
 
@@ -247,7 +247,7 @@ const refreshAccessToken = asyncHandler(async (req, res, next) => {
     }
 });
 
-const currentUserPassword = asyncHandler(async (req,res,next)=>{
+const changeCurrentPassword = asyncHandler(async (req,res,next)=>{
     const {oldPassword, newPassword} = req.body;
      const user = await User.findById(req.user?._id)
     const isPasswordValid = await user.comparedPassword(req.body.newPassword);
@@ -443,15 +443,68 @@ const getUserChannelProfile = asyncHandler(async (req,res,next)=>{
     );
 });
 
+const getUserWatchHistory = asyncHandler(async (req,res,next)=>{
+    //get user from req
+
+    const user = await User.aggregate([
+        {
+            $match:{
+                _id: new mongoose.Types.ObjectId(req.user?._id)
+            }
+        },
+        {
+            $lookup:{
+                from : "videos",
+                localField:"watchHistory",
+                foreignField:"_id",
+                as:"watchHistory",
+                pipeline:[
+                    {
+                        $lookup:{
+                            from: "users",
+                            localField: "owner",
+                            foreignField: "_id",
+                            as:"owner",
+                            pipeline:[
+                                {
+                                    $project:{
+                                        username:1,
+                                        fullName:1,
+                                        avatar:1
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        $addFields:{
+                            owner:{
+                                $first: "$owner"
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    ]);
+
+    return res.status(200)
+    .json(
+        new ApiResponse(200, user[0]?.watchHistory || [],
+             "User watch history fetched successfully")
+    )
+});
+
 export {
     registerUser, 
     loginUser, 
     logOutUser,
     refreshAccessToken,
-    currentUserPassword,
+    changeCurrentPassword,
     getCurrentUser,
     updateAccountDetails,
     updateUserAvatar,
     updateUserCoverImage,
-    getUserChannelProfile
+    getUserChannelProfile,
+    getUserWatchHistory
 };
