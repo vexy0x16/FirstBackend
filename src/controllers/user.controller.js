@@ -4,8 +4,25 @@ import {User} from "../models/user.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/apiRespones.js";
 import path from "path";
-import { ref } from "process";
+import jwt from "jsonwebtoken";
 
+const generateAccessTokenAndRefreshToken = async (userId) => {
+        try {
+            const user = await User.findById(userId);
+            const accessToken = user.generateAccessToken();
+            const refreshToken = user.generateRefreshToken();
+
+            user.refreshToken = refreshToken;
+            await user.save({validateBeforeSave: false});
+
+            return {accessToken, refreshToken};
+            
+        } catch (error) {
+            
+            throw new ApiError(500, "Token generation failed");
+            
+        }
+};
 
 const registerUser = asyncHandler(async (req, res, next) => {
     // get user data from frontend
@@ -89,25 +106,6 @@ console.log("REQ.FILES:", req.files);
     );
 });
 
-const generateAccessTokenAndRefreshToken = async (userId) => {
-        try {
-
-            const user = await User.findById(userId);
-            const accessToken = user.generateAccessToken();
-            const refreshToken = user.generateRefreshToken();
-
-            user.refreshToken = refreshToken;
-            await user.save({validateBeforeSave: false});
-
-            return {accessToken, refreshToken};
-            
-        } catch (error) {
-            
-            throw new ApiError(500, "Token generation failed");
-            
-        }
-};
-
 const loginUser = asyncHandler(async (req, res, next) => {
 
     //req.body - data
@@ -177,7 +175,7 @@ const logOutUser = asyncHandler(async (req, res, next) => {
 
     await User.findByIdAndUpdate(req.user._id,
         {
-            $set : {refreshToken: undefined}
+            $unset : {refreshToken: 1}
         },
         {
             new : true,
@@ -211,7 +209,10 @@ const refreshAccessToken = asyncHandler(async (req, res, next) => {
 
     //2. verify refresh token
     try {
-        const decodedToken = jwt.verify(incomingRefreshToken, process.env.REFRESH_TOKEN_SECRET);
+        const decodedToken = jwt
+        .verify(incomingRefreshToken,
+            process.env.REFRESH_TOKEN_SECRET
+        );
     
         const user = await User.findById(decodedToken?._id);
     
@@ -222,15 +223,14 @@ const refreshAccessToken = asyncHandler(async (req, res, next) => {
         if(user.refreshToken !== incomingRefreshToken){
             throw new ApiError(401, "Refresh token mismatch, login again");
         }
-    
-        //3. generate new access token
-        const {accessToken, newRefreshToken} = await user.generateAccessTokenAndRefreshToken();
-    
-        //4. send response
+
         const options = {
             httpOnly: true,
             secure: true
         };
+    
+        //3. generate new access token
+        const { accessToken, newRefreshToken } = await generateAccessTokenAndRefreshToken(user._id);
     
         return res.status(200)
         .cookie("accessToken", accessToken, options)
@@ -250,14 +250,15 @@ const refreshAccessToken = asyncHandler(async (req, res, next) => {
 const changeCurrentPassword = asyncHandler(async (req,res,next)=>{
     const {oldPassword, newPassword} = req.body;
      const user = await User.findById(req.user?._id)
-    const isPasswordValid = await user.comparedPassword(req.body.newPassword);
+    const isPasswordValid = await user.comparedPassword(oldPassword);
+
 
     if(!isPasswordValid){
         throw new ApiError(401, "Invalid password");
     }
 
     user.password = newPassword;
-    await user.save(validateBeforeSave=false);
+    await user.save({validateBeforeSave:false});
 
     return res.status(200)
     .json(

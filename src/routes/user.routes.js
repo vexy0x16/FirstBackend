@@ -5,6 +5,7 @@ import {
     logOutUser, 
     refreshAccessToken,
     changeCurrentPassword,
+    getCurrentUser,
     updateAccountDetails,
     updateUserAvatar,
     updateUserCoverImage,
@@ -40,7 +41,7 @@ router.route("/refresh-access-token").post(refreshAccessToken);
 
 router.route("/change-password").post(verifyJWT,changeCurrentPassword);
 
-router.route("/current-user").get(verifyJWT,changeCurrentPassword);
+router.route("/current-user").get(verifyJWT,getCurrentUser);
 
 router.route("/update-account-details").patch(verifyJWT,updateAccountDetails);
 
