@@ -1,4 +1,3 @@
-
 # Backend API - WebDev Project
 
 Lightweight Node.js/Express backend for a video/tweets social app (comments, likes, playlists, subscriptions, users, videos). This repository contains controllers, models, routes, middleware, and utilities used by the app.
@@ -19,6 +18,7 @@ Lightweight Node.js/Express backend for a video/tweets social app (comments, lik
 ## Quick start
 
 Requirements:
+
 - Node.js (16+)
 - npm or yarn
 - MongoDB instance (local or hosted)
